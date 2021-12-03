@@ -1,10 +1,5 @@
 # Analyzing Drought Climate Data from 1895-2016
 ## Analyzing Palmer Drought Severity Index (PDSI) in the Contiguous US
 
-   ___              _                  ___          _        _   
-  / __|__ _ _ __ __| |_ ___ _ _  ___  | _ \_ _ ___ (_)___ __| |_ 
- | (__/ _` | '_ (_-<  _/ _ \ ' \/ -_) |  _/ '_/ _ \| / -_) _|  _|
-  \___\__,_| .__/__/\__\___/_||_\___| |_| |_| \___// \___\__|\__|
-           |_|                                   |__/            
------------------------------------------------------------------
-                         Scotty H 2021
+Capstone Project
+By Scotty Hall
