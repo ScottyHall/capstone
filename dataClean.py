@@ -7,6 +7,14 @@ from databaseConnection import getDatabaseConnection
 from createTables import createDroughtTable, createCountiesTable, createStatesTable
 
 
+def insertAmtEqualsSource(dfLen: int, dbTblLen: int):
+    if (dfLen == dbTblLen):
+        print('Source Rows and DB Rows Match. Total Rows: {0}'.format(dfLen))
+        return True
+    else:
+        print('Source Data Rows: {0} | Database rows: {1}'.format(dfLen, dbTblLen))
+        return False
+
 def cleanFipsCols(df: pd.DataFrame, column: str, lenCol: int):
     """Clean fips col edits the fips codes to ensure all are 5 digits
     Adds leading zeros when needed
@@ -27,7 +35,8 @@ def insertIntoDrought(dataFrame: pd.DataFrame):
     Parameters:
     dataFrame: pd.DataFrame
 
-    Returns: None
+    Returns:
+    bool - data was inserted and commited to db successfully
     """
     conn = getDatabaseConnection()
     cur = conn.cursor()
@@ -47,14 +56,21 @@ def insertIntoDrought(dataFrame: pd.DataFrame):
                 cur.execute(sql)
         except Exception as err:
             print(err)
-        else:
-            conn.commit()
-        finally:
             cur.close()
             conn.close()
+            return False
+        else:
+            # only commit the data to DB if there is no loss of data from source
+            if (insertAmtEqualsSource(totalRows, currentRow)):
+                conn.commit()
+                return True
+            else:
+                print('DROUGHT DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False            
     else:
         cur.close()
         conn.close()
+        return False
 
 
 def insertIntoStates(dataFrame: pd.DataFrame):
@@ -63,7 +79,8 @@ def insertIntoStates(dataFrame: pd.DataFrame):
     Parameters:
     dataFrame: pd.DataFrame
 
-    Returns: None
+    Returns:
+    bool - data was inserted and commited to db successfully
     """
     conn = getDatabaseConnection()
     cur = conn.cursor()
@@ -83,14 +100,21 @@ def insertIntoStates(dataFrame: pd.DataFrame):
                 cur.execute(sql)
         except Exception as err:
             print(err)
-        else:
-            conn.commit()
-        finally:
             cur.close()
             conn.close()
+            return False
+        else:
+            # only commit the data to DB if there is no loss of data from source
+            if (insertAmtEqualsSource(totalRows, currentRow)):
+                conn.commit()
+                return True
+            else:
+                print('STATES DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False        
     else:
         cur.close()
         conn.close()
+        return False
 
 
 def insertIntoCounties(dataFrame: pd.DataFrame):
@@ -99,7 +123,8 @@ def insertIntoCounties(dataFrame: pd.DataFrame):
     Parameters:
     dataFrame: pd.DataFrame
 
-    Returns: None
+    Returns:
+    bool - data was inserted and commited to db successfully
     """
     conn = getDatabaseConnection()
     cur = conn.cursor()
@@ -119,14 +144,21 @@ def insertIntoCounties(dataFrame: pd.DataFrame):
                 cur.execute(sql)
         except Exception as err:
             print(err)
-        else:
-            conn.commit()
-        finally:
             cur.close()
             conn.close()
+            return False
+        else:
+            # only commit the data to DB if there is no loss of data from source
+            if (insertAmtEqualsSource(totalRows, currentRow)):
+                conn.commit()
+                return True
+            else:
+                print('COUNTIES DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False
     else:
         cur.close()
         conn.close()
+        return False
 
 
 def insertIntoMissingCounties(countyFips: np.array):

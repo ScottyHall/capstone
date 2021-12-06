@@ -16,14 +16,26 @@ def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd
     dfStates: pd.DataFrame - state data
     newDB?: bool - optional True = wipe data and insert all, default = False
 
-    Returns: None
+    Returns:
+    bool - data cleaned and successfully inserted into database
     """
+    droughtTable = False
+    countiesTable = False
+    statesTable = False
     canInsertIntoDB = False
-    if (databaseConnected()):
+
+    if (databaseConnected() and newDB):
         # create tables
         droughtTable = createDroughtTable()
         countiesTable = createCountiesTable()
         statesTable = createStatesTable()
+    elif (newDB == False):
+        droughtTable = True
+        countiesTable = True
+        statesTable = True
+    else:
+        print('Could not pass table section of cleaning')
+        return False
 
     # main fips cleaning for joining data
     doesNotInclude = cleanFips(dfDrought, dfCounties, dfStates)
@@ -34,10 +46,14 @@ def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd
 
     if (newDB and canInsertIntoDB):
         # insert data into database
-        insertIntoDrought(dfDrought)
-        insertIntoStates(dfStates)
-        insertIntoCounties(dfCounties)
-        insertMissingCounties()
+        if (insertIntoDrought(dfDrought) and insertIntoStates(dfStates) and insertIntoCounties(dfCounties)):
+            insertMissingCounties()
+            return True
+    elif (newDB == False and canInsertIntoDB):
+        print('Existing Database Used. No database changes commited during cleaning')
+        return True
+    else:
+        return False
 
 
 def generateVisualizations(dfDrought):
@@ -60,8 +76,13 @@ def main():
     dfStates = cleanFipsCols(dfStates, 'state_fips', 2)
 
     # last param to True if database tables to be dropped and re-inserted
-    cleanAndPrep(dfDrought, dfCounties, dfStates)
-    generateVisualizations(dfDrought)
+    dataCleaned = cleanAndPrep(dfDrought, dfCounties, dfStates)
+
+    if (dataCleaned):
+        print('Data cleaning completed successfully ========================')
+        generateVisualizations(dfDrought)
+    else:
+        print('Could not process data further, failed cleaning process')
 
 
 if __name__ == "__main__":
