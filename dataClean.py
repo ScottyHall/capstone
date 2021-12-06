@@ -7,19 +7,19 @@ from databaseConnection import getDatabaseConnection
 from createTables import createDroughtTable, createCountiesTable, createStatesTable
 
 
-def cleanFipsCols(drought: pd.DataFrame):
+def cleanFipsCols(df: pd.DataFrame, column: str, lenCol: int):
     """Clean fips col edits the fips codes to ensure all are 5 digits
     Adds leading zeros when needed
 
     Parameter:
-    drought: pd.DataFrame
+    df: pd.DataFrame
+    column: str - column name for fips data
 
     Returns:
-    drought: pd.DataFrame with edited fips
+    df: pd.DataFrame with edited fips
     """
-    drought['countyfips'] = drought['countyfips'].str.zfill(5)
-    return drought
-
+    df[column] = df[column].str.zfill(lenCol)
+    return df
 
 def insertIntoDrought(dataFrame: pd.DataFrame):
     """Insert drought data into the database
@@ -33,15 +33,21 @@ def insertIntoDrought(dataFrame: pd.DataFrame):
     cur = conn.cursor()
     cur.execute("SELECT * FROM drought LIMIT 3;")
     if (cur.fetchone() == None):
+        totalRows = len(dataFrame.index)
+        currentRow = 0
+        print('Starting Drought Insert into Database...')
         try:
             for row in dataFrame.itertuples(index=False):
-                sql = cur.mogrify("INSERT INTO drought (year, month, state_fips, county_fips, pdsi, date) VALUES(%s, %s, %s, %s, %s);",
-                                  (row[0], row[1], row[2], row[3], row[4], row[5]))
+                currentRow += 1
+                percentage = (currentRow / totalRows) * 100
+                if (percentage % 5 == 0):
+                    print('{0}% complete'.format(percentage))
+                sql = cur.mogrify("INSERT INTO drought (year, month, state_fips, county_fips, pdsi) VALUES(%s, %s, %s, %s, %s);",
+                                  (row.year, row.month, row.statefips, row.countyfips, row.pdsi))
                 cur.execute(sql)
         except Exception as err:
             print(err)
         else:
-            print(dataFrame)
             conn.commit()
         finally:
             cur.close()
@@ -63,15 +69,21 @@ def insertIntoStates(dataFrame: pd.DataFrame):
     cur = conn.cursor()
     cur.execute("SELECT * FROM states LIMIT 3;")
     if (cur.fetchone() == None):
+        totalRows = len(dataFrame.index)
+        currentRow = 0
+        print('Starting States Insert into Database...')
         try:
             for row in dataFrame.itertuples(index=False):
+                currentRow += 1
+                percentage = (currentRow / totalRows) * 100
+                if (percentage % 5 == 0):
+                    print('{0}% complete'.format(percentage))
                 sql = cur.mogrify("INSERT INTO states (name, postal_code, fips) VALUES(%s, %s, %s);",
                                   (row[0], row[1], row[2]))
                 cur.execute(sql)
         except Exception as err:
             print(err)
         else:
-            print(dataFrame)
             conn.commit()
         finally:
             cur.close()
@@ -93,15 +105,21 @@ def insertIntoCounties(dataFrame: pd.DataFrame):
     cur = conn.cursor()
     cur.execute("SELECT * FROM counties LIMIT 3;")
     if (cur.fetchone() == None):
+        totalRows = len(dataFrame.index)
+        currentRow = 0
+        print('Starting Counties Insert into Database...')
         try:
             for row in dataFrame.itertuples(index=False):
+                currentRow += 1
+                percentage = (currentRow / totalRows) * 100
+                if (percentage % 5 == 0):
+                    print('{0}% complete'.format(percentage))
                 sql = cur.mogrify("INSERT INTO counties (fips, name) VALUES(%s, %s);",
                                   (row[0], row[1]))
                 cur.execute(sql)
         except Exception as err:
             print(err)
         else:
-            print(dataFrame)
             conn.commit()
         finally:
             cur.close()
@@ -131,19 +149,19 @@ def insertMissingCounties():
     The Census Bureau estimates that the resulting population
     loss was 21,512 for Boulder, 15,870 for Adams, 1,726 for Jefferson, and 69 for Weld county. (Dorn)
     """
-    cur.execute("SELECT name FROM counties WHERE fips=8014;")
+    cur.execute("SELECT name FROM counties WHERE fips='08014';")
     if (cur.fetchone() == None):
         cur.execute(
-            "INSERT INTO counties (fips, name) VALUES(8014, 'Broomfield County');")
+            "INSERT INTO counties (fips, name) VALUES('08014', 'Broomfield County');")
 
     """
     https://www.ddorn.net/data/FIPS_County_Code_Changes.pdf
     Florida, 1997: Dade county (FIPS 12025) is renamed as Miami-Dade county (FIPS 12086).
     """
-    cur.execute("SELECT name FROM counties WHERE fips=12086;")
+    cur.execute("SELECT name FROM counties WHERE fips='12086';")
     if (cur.fetchone() == None):
         cur.execute(
-            "INSERT INTO counties (fips, name) VALUES(12086, 'Miami-Dade County');")
+            "INSERT INTO counties (fips, name) VALUES('12086', 'Miami-Dade County');")
 
     conn.commit()
     cur.close()
@@ -249,5 +267,10 @@ def ingestCSV(path: str = 'sourceData/drought.csv'):
     Returns:
     dfIngest: pd.DataFrame
     """
-    dfIngest = pd.read_csv(path, dtype={"countyfips": str})
+    dfIngest = pd.read_csv(path, dtype={
+        "countyfips": str,
+        "county_fips": str,
+        "statefips": str,
+        "state_fips": str
+    })
     return dfIngest

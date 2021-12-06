@@ -2,6 +2,7 @@
 sourceData/
 visualizations/
 .DS_Store
+.vscode/
 test.py
 
 # Byte-compiled / optimized / DLL files

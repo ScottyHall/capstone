@@ -7,7 +7,17 @@ from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates,
 from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChart
 
 
-def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd.DataFrame):
+def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd.DataFrame, newDB: bool = False):
+    """Clean, prep, and insert data into database
+    
+    Parameters:
+    dfDrought: pd.DataFrame - drought data
+    dfCounties: pd.DataFrame - county data
+    dfStates: pd.DataFrame - state data
+    newDB?: bool - optional True = wipe data and insert all, default = False
+
+    Returns: None
+    """
     canInsertIntoDB = False
     if (databaseConnected()):
         # create tables
@@ -22,7 +32,7 @@ def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd
         if (doesNotInclude['stateErrors'] + doesNotInclude['countyErrors'] == 0):
             canInsertIntoDB = True
 
-    if (canInsertIntoDB):
+    if (newDB and canInsertIntoDB):
         # insert data into database
         insertIntoDrought(dfDrought)
         insertIntoStates(dfStates)
@@ -43,10 +53,15 @@ def main():
     dfCounties = ingestCSV('sourceData/counties.csv')
     dfStates = ingestCSV('sourceData/states.csv')
 
-    dfDrought = cleanFipsCols(dfDrought)
+    # clean the fips columns
+    dfDrought = cleanFipsCols(dfDrought, 'countyfips', 5)
+    dfDrought = cleanFipsCols(dfDrought, 'statefips', 2)
+    dfCounties = cleanFipsCols(dfCounties, 'county_fips', 5)
+    dfStates = cleanFipsCols(dfStates, 'state_fips', 2)
 
-    # cleanAndPrep(dfDrought, dfCounties, dfStates)
-    # generateVisualizations()
+    # last param to True if database tables to be dropped and re-inserted
+    cleanAndPrep(dfDrought, dfCounties, dfStates)
+    generateVisualizations(dfDrought)
 
 
 if __name__ == "__main__":

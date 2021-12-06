@@ -11,16 +11,15 @@ def createDroughtTable():
     if (conn):
         cur = conn.cursor()
         try:
-            # cur.execute('DROP TABLE IF EXISTS drought;')
+            cur.execute('DROP TABLE IF EXISTS drought;')
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS drought(
                     id serial PRIMARY KEY,
                     year smallint NOT NULL,
                     month smallint NOT NULL,
-                    state_fips smallint NOT NULL,
-                    county_fips integer NOT NULL,
-                    pdsi numeric NOT NULL,
-                    date date
+                    state_fips varchar(2) NOT NULL,
+                    county_fips varchar(5) NOT NULL,
+                    pdsi numeric NOT NULL
                 );''')
             conn.commit()
         except Exception as err:
@@ -49,13 +48,13 @@ def createStatesTable():
     if (conn):
         cur = conn.cursor()
         try:
-            # cur.execute('DROP TABLE IF EXISTS states;')
+            cur.execute('DROP TABLE IF EXISTS states;')
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS states(
                     id serial PRIMARY KEY,
                     name varchar(32) NOT NULL,
                     postal_code varchar(2) NOT NULL,
-                    fips smallint UNIQUE NOT NULL
+                    fips varchar(2) UNIQUE NOT NULL
                 );''')
             conn.commit()
         except Exception as err:
@@ -84,11 +83,11 @@ def createCountiesTable():
     if (conn):
         cur = conn.cursor()
         try:
-            # cur.execute('DROP TABLE IF EXISTS counties;')
+            cur.execute('DROP TABLE IF EXISTS counties;')
             cur.execute('''
                 CREATE TABLE IF NOT EXISTS counties(
                     id serial PRIMARY KEY,
-                    fips integer UNIQUE NOT NULL,
+                    fips varchar(5) UNIQUE NOT NULL,
                     name varchar(64) NOT NULL
                 );''')
             conn.commit()

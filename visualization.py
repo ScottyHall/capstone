@@ -110,14 +110,16 @@ def genCountyChart(dfDrought):
     Returns: None
     """
     df = dfDrought.loc[dfDrought['year'] >= 1960]
+    # df = dfDrought
     print(df)
     fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
                         color_continuous_scale="Viridis_r",
                         animation_frame='year',
-                        range_color=(5, -5),
+                        range_color=(10, -10),
                         scope="usa",
                         labels={'pdsi': 'PDSI'}
                         )
     fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     # exportPlotlyPNG(fig, 'countyMap2011', 'visualizations/countyMaps')
+    exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')

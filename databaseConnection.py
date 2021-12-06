@@ -1,7 +1,7 @@
 import psycopg2
 
 
-def getDatabaseConnection(dbName='capstoneDB', user='scotty'):
+def getDatabaseConnection(dbName='capstone', user='punchcard'):
     """Connect to the postgres database
 
     Parameters:
