@@ -1,13 +1,19 @@
 import json
+import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.figure_factory as ff
 import plotly
 import plotly.express as px
 import os
+import matplotlib.pyplot as plt
+from dataClean import getGeoData
 
-with open('sourceData/geo.json') as f:
-    counties = json.load(f)
 
+counties = getGeoData()
+
+def exportMatplotPNG(figure: plt, fileName: str, exportDir: str = 'visualizations/png'):
+    figure.savefig(exportDir + '/' + fileName + '.png')
 
 def exportPlotlySVG(figure: plotly.graph_objects, fileName: str, exportDir: str = 'visualizations/svg'):
     """
@@ -28,10 +34,7 @@ def exportPlotlySVG(figure: plotly.graph_objects, fileName: str, exportDir: str 
         else:
             print('Exported Plotly {0}/{1}.svg'.format(exportDir, fileName))
     else:
-        print(
-            'Directory "{0} was not found for exporting plot"'.format(
-                exportDir)
-        )
+        print('Directory "{0} was not found for exporting plot"'.format(exportDir))
 
 
 def exportPlotlyPNG(figure: plotly.graph_objects, fileName: str, exportDir: str = 'visualizations/png'):
@@ -86,22 +89,21 @@ def exportPlotlyHTML(figure: plotly.graph_objects, fileName: str, exportDir: str
         )
 
 
-def generateScatterPlot(df):
-    df = df.head(10)
+def generateScatterPlot(df, title: str):
     fig = px.scatter(df, x="year", y="pdsi", color='pdsi')
-    exportPlotlySVG(fig, 'test3')
+    exportPlotlySVG(fig, title)
 
 
-def genScatterPltNonlin(df: pd.DataFrame):
-    df = df.loc[df['year'] == 1950]
+def genScatterPltNonlin(df: pd.DataFrame, title: str):
+    # df = df.loc[df['year'] == 1950]
     fig = px.scatter(df, x="year", y="pdsi",
                      trendline="ols", trendline_options=dict(log_x=True),
                      title="Log-transformed fit on linear axes")
-    exportPlotlySVG(fig, 'scatterPlot1950')
+    exportPlotlySVG(fig, title)
 
 
-def genCountyChart(dfDrought):
-    """Gen county chart creates figure map of US with filled in counties
+def genCountyChartTimeline(dfDrought):
+    """Gen county chart creates figure map of US with filled in counties as a timeline
     saves figure as image using export methods
 
     Parameters:
@@ -111,7 +113,6 @@ def genCountyChart(dfDrought):
     """
     df = dfDrought.loc[dfDrought['year'] >= 1960]
     # df = dfDrought
-    print(df)
     fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
                         color_continuous_scale="Viridis_r",
                         animation_frame='year',
@@ -123,3 +124,76 @@ def genCountyChart(dfDrought):
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     # exportPlotlyPNG(fig, 'countyMap2011', 'visualizations/countyMaps')
     exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
+
+def genCountyChart(dfDrought, name: str):
+    """Gen county chart creates figure map of US with filled in counties
+    saves figure as image using export methods
+
+    Parameters:
+    dfDrought: df.DataFrame - dataframe for visualization
+
+    Returns: None
+    """
+    # df = dfDrought.loc[dfDrought['year'] >= 1960]
+    df = dfDrought
+    fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
+                        color_continuous_scale="Viridis_r",
+                        range_color=(10, -10),
+                        scope="usa",
+                        labels={'pdsi': 'PDSI'}
+                        )
+    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+    # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
+    exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
+    # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
+
+
+def visualizeCountiesAllYears(dfDrought):
+    """Visualize Counties for all years
+    loops through all years present in DataFrame and exports
+
+    Parameters:
+    dfDrought: df.DataFrame - dataframe for visualization
+
+    Returns: None
+    """
+    print('generating county map PNG for all years present in data...')
+
+    years = dfDrought['year'].unique()
+
+    for year in years[0:5]:
+        print('generating map for year {0}'.format(year))
+        df = dfDrought.loc[dfDrought['year'] >= year]
+        fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
+                        color_continuous_scale="Viridis_r",
+                        range_color=(10, -10),
+                        scope="usa",
+                        labels={'pdsi': 'PDSI'}
+                        )
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        exportPlotlyPNG(fig, 'countyMap{0}'.format(year.astype(str)), 'visualizations/countyMaps')
+        fig = None
+
+def stackedHistogram(dfDrought):
+
+    counties = dfDrought['countyfips'].unique()
+
+    fig = go.Figure()
+
+    for county in counties[0:1]:
+        df = dfDrought.loc[dfDrought['countyfips'] == county]
+        months = df['month'].unique()
+        for month in months:
+            monthChart = None
+            monthChart = df.loc[df['month'] == month]
+            fig.add_trace(go.Histogram(x=monthChart['year'], y=monthChart['pdsi']))
+
+     # for index, row in df.iterrows():
+        # fig.add_trace(go.Histogram(x=row.year, y=row.pdsi))
+    # fig.add_trace(go.Histogram(x=df['countyfips'], y=df['pdsi']))
+
+    # Overlay both histograms
+    fig.update_layout(barmode='overlay')
+    # Reduce opacity to see both histograms
+    fig.update_traces(opacity=0.1)
+    fig.show()

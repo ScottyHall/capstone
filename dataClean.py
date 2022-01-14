@@ -1,11 +1,17 @@
 # Used to clean the drought data, county data, and state data
 from datetime import date
+import json
 import pandas as pd
 import numpy as np
 from io import StringIO
 from databaseConnection import getDatabaseConnection
 from createTables import createDroughtTable, createCountiesTable, createStatesTable
 
+
+def getGeoData(geoSource: str = 'sourceData/geo.json'):
+    with open(geoSource) as f:
+        counties = json.load(f)
+    return counties
 
 def insertAmtEqualsSource(dfLen: int, dbTblLen: int):
     if (dfLen == dbTblLen):
