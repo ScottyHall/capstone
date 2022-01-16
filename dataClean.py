@@ -3,10 +3,58 @@ from datetime import date
 import json
 import pandas as pd
 import numpy as np
+import re
 from io import StringIO
-from databaseConnection import getDatabaseConnection
-from createTables import createDroughtTable, createCountiesTable, createStatesTable
 
+from pandas.core.frame import DataFrame
+from databaseConnection import getDatabaseConnection
+from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable
+
+
+def cleanRainfallData(df: pd.DataFrame):
+    i = 0
+    data = {'state_id': [], 'county_id': [], 'year': [],
+            'jan': [], 'feb': [], 'mar': [], 'apr': [], 'may': [], 'jun': [],
+            'jul': [], 'aug': [], 'sep': [], 'oct': [], 'nov': [], 'dec': []}
+    for row in df.itertuples(index=False):
+        if (len(row[0]) == 11):
+            idState = row[0][:2]
+            idCounty = row[0][2:5]
+            idRain = row[0][5:7]
+            idYear = row[0][7:]
+            if (idRain == '01'):
+                data['state_id'].append(idState)
+                data['county_id'].append(idCounty)
+                data['year'].append(idYear)
+                data['jan'].append(row[1])
+                data['feb'].append(row[2])
+                data['mar'].append(row[3])
+                data['apr'].append(row[4])
+                data['may'].append(row[5])
+                data['jun'].append(row[6])
+                data['jul'].append(row[7])
+                data['aug'].append(row[8])
+                data['sep'].append(row[9])
+                data['oct'].append(row[10])
+                data['nov'].append(row[11])
+                data['dec'].append(row[12])
+                i += 1
+    if (len(df) == i):
+        print('All rows IDs are valid length')
+    newDf = pd.DataFrame(data)
+    return newDf
+
+def addThreeDigitFipsToCounties(df: pd.DataFrame):
+    print(df)
+    data = {'county_fips': [], 'county_name': [], 'fips_only': []}
+    for row in df.itertuples(index=False):
+        if (len(row[0]) == 5):
+            fipsOnly = row[0][2:]
+            data['county_fips'].append(row[0])
+            data['county_name'].append(row[1])
+            data['fips_only'].append(fipsOnly)
+    newDf = pd.DataFrame(data)
+    return newDf
 
 def getGeoData(geoSource: str = 'sourceData/geo.json'):
     with open(geoSource) as f:
@@ -22,7 +70,7 @@ def insertAmtEqualsSource(dfLen: int, dbTblLen: int):
         return False
 
 def cleanFipsCols(df: pd.DataFrame, column: str, lenCol: int):
-    """Clean fips col edits the fips codes to ensure all are 5 digits
+    """Clean fips col edits the fips codes to ensure all are lenCol digits long
     Adds leading zeros when needed
 
     Parameter:
@@ -34,6 +82,49 @@ def cleanFipsCols(df: pd.DataFrame, column: str, lenCol: int):
     """
     df[column] = df[column].str.zfill(lenCol)
     return df
+
+def insertIntoRain(dataFrame: pd.DataFrame):
+    """Insert rain data into the database
+
+    Parameters:
+    dataFrame: pd.DataFrame
+
+    Returns:
+    bool - data was inserted and commited to db successfully
+    """
+    conn = getDatabaseConnection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM rain LIMIT 3;")
+    if (cur.fetchone() == None):
+        totalRows = len(dataFrame.index)
+        currentRow = 0
+        print('Starting Rain Insert into Database...')
+        try:
+            for row in dataFrame.itertuples(index=False):
+                currentRow += 1
+                percentage = (currentRow / totalRows) * 100
+                if (percentage % 5 == 0):
+                    print('{0}% complete'.format(percentage))
+                sql = cur.mogrify("INSERT INTO rain (state_id, county_id, year, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec) VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);",
+                                  (row.state_id, row.county_id, row.year, row.jan, row.feb, row.mar, row.apr, row.may, row.jun, row.jul, row.aug, row.sep, row.oct, row.nov, row.dec))
+                cur.execute(sql)
+        except Exception as err:
+            print(err)
+            cur.close()
+            conn.close()
+            return False
+        else:
+            # only commit the data to DB if there is no loss of data from source
+            if (insertAmtEqualsSource(totalRows, currentRow)):
+                conn.commit()
+                return True
+            else:
+                print('RAIN DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False            
+    else:
+        cur.close()
+        conn.close()
+        return False
 
 def insertIntoDrought(dataFrame: pd.DataFrame):
     """Insert drought data into the database
@@ -101,8 +192,8 @@ def insertIntoStates(dataFrame: pd.DataFrame):
                 percentage = (currentRow / totalRows) * 100
                 if (percentage % 5 == 0):
                     print('{0}% complete'.format(percentage))
-                sql = cur.mogrify("INSERT INTO states (name, postal_code, fips) VALUES(%s, %s, %s);",
-                                  (row[0], row[1], row[2]))
+                sql = cur.mogrify("INSERT INTO states (name, postal_code, fips, noaa_code) VALUES(%s, %s, %s, %s);",
+                                  (row[0], row[1], row[2], row[3]))
                 cur.execute(sql)
         except Exception as err:
             print(err)
@@ -145,8 +236,8 @@ def insertIntoCounties(dataFrame: pd.DataFrame):
                 percentage = (currentRow / totalRows) * 100
                 if (percentage % 5 == 0):
                     print('{0}% complete'.format(percentage))
-                sql = cur.mogrify("INSERT INTO counties (fips, name) VALUES(%s, %s);",
-                                  (row[0], row[1]))
+                sql = cur.mogrify("INSERT INTO counties (fips, name, fips_only) VALUES(%s, %s, %s);",
+                                  (row.county_fips, row.county_name, row.fips_only))
                 cur.execute(sql)
         except Exception as err:
             print(err)
@@ -190,7 +281,7 @@ def insertMissingCounties():
     cur.execute("SELECT name FROM counties WHERE fips='08014';")
     if (cur.fetchone() == None):
         cur.execute(
-            "INSERT INTO counties (fips, name) VALUES('08014', 'Broomfield County');")
+            "INSERT INTO counties (fips, name, fips_only) VALUES('08014', 'Broomfield County', '014');")
 
     """
     https://www.ddorn.net/data/FIPS_County_Code_Changes.pdf
@@ -199,7 +290,7 @@ def insertMissingCounties():
     cur.execute("SELECT name FROM counties WHERE fips='12086';")
     if (cur.fetchone() == None):
         cur.execute(
-            "INSERT INTO counties (fips, name) VALUES('12086', 'Miami-Dade County');")
+            "INSERT INTO counties (fips, name, fips_only) VALUES('12086', 'Miami-Dade County', '086');")
 
     conn.commit()
     cur.close()
@@ -309,6 +400,8 @@ def ingestCSV(path: str = 'sourceData/drought.csv'):
         "countyfips": str,
         "county_fips": str,
         "statefips": str,
-        "state_fips": str
+        "state_fips": str,
+        "noaa_state_fips": str,
+        "id_code": str
     })
     return dfIngest
