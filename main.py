@@ -9,7 +9,7 @@ from databaseConnection import databaseConnected
 from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable
 from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
 from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram
-from machineLearning import mlTester
+from machineLearning import mlTester, concatData
 
 
 def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd.DataFrame, dfRain: pd.DataFrame, newDB: bool = False):
@@ -75,7 +75,6 @@ def generateVisualizations(dfDrought):
 
 def generateAllCountyVisualization(dfDrought, yearsNp):
     for year in yearsNp:
-        print(year)
         df = dfDrought.loc[dfDrought['year'] >= year]
         yearStr = year.astype(str)
 
@@ -83,7 +82,6 @@ def generateDataByCounty(dfDrought, counties):
     """generate additional data by each county
     """
     for county in counties[:10]:
-        print(county)
         countyByYear = dfDrought.loc[dfDrought['countyfips'] == county]
         pdsi = countyByYear['pdsi']
         calcMedian = np.median(pdsi)
@@ -91,7 +89,7 @@ def generateDataByCounty(dfDrought, counties):
         calcStd = np.std(pdsi)
         calcMin = np.amin(pdsi)
         calcMax = np.amax(pdsi)
-        print('Median: {0}, Average: {1}, Std: {2}, Min: {3}, Max: {4}'.format(calcMedian, calcAverage, calcStd, calcMin, calcMax))
+        # print('Median: {0}, Average: {1}, Std: {2}, Min: {3}, Max: {4}'.format(calcMedian, calcAverage, calcStd, calcMin, calcMax))
         # genScatterPltNonlin(countyByYear, 'title2')
 
 def main():
@@ -115,18 +113,21 @@ def main():
     dfCounties = addThreeDigitFipsToCounties(dfCounties)
 
     # last param to True if database tables to be dropped and re-inserted
-    dataCleaned = cleanAndPrep(dfDrought, dfCounties, dfStates, dfRain, True)
+    # send True as the final input on cleanAndPrep to insert new data to database
+    dataCleaned = cleanAndPrep(dfDrought, dfCounties, dfStates, dfRain)
 
     years = dfDrought['year'].unique()
     counties = dfDrought['countyfips'].unique()
 
     if (dataCleaned):
         print('Data cleaning completed successfully ========================')
-        df = dfDrought.loc[dfDrought['year'] >= 1960]
+        # df = dfDrought.loc[dfDrought['year'] >= 1960]
         # numpy data array for machine learning algorithms
 
         # dfDroughtDataArr = df[['pdsi', 'statefips']].to_numpy()
         # mlTester(dfDroughtDataArr)
+
+        dfCombinedDroughtRainData = concatData(dfDrought, dfRain, dfStates)
     
         generateDataByCounty(dfDrought, counties)
 

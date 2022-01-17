@@ -4,6 +4,7 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 
+import pandas as pd
 from sklearn import cluster, datasets, mixture
 from sklearn.neighbors import kneighbors_graph
 from sklearn.preprocessing import StandardScaler
@@ -12,6 +13,30 @@ from itertools import cycle, islice
 from visualization import exportMatplotPNG
 
 
+def concatData(dfDrought: pd.DataFrame, dfRain: pd.DataFrame, dfStates: pd.DataFrame):
+    """Concat Data method concats rainfall data to each entry to pdsi dataframe
+    convert the dataframe to a numpy array for sklearn
+
+    Parameters:
+    dfDrought: pd.DataFrame - drought data
+    dfRain: pd.DataFrame - rainfall data
+
+    Returns:
+    dataset: pd.DataFrame - all data merged
+    """
+    dfMergeRain = pd.merge(dfRain, dfStates, left_on='state_id', right_on='noaa_state_fips')
+
+    dfMergeRain = dfMergeRain.drop(['state_id'], axis=1)
+    dfMergeRain['countyfips'] = dfMergeRain['state_fips'] + dfMergeRain['county_id']
+
+    dfMergeRain['year'] = dfMergeRain['year'].astype(int)
+    dfDrought['year'] = dfDrought['year'].astype(int)
+
+    dfMergeRainDrought = pd.merge(dfDrought, dfMergeRain, on=['year', 'countyfips'], how='left')
+
+    return dfMergeRainDrought
+
+ 
 def mlTester(datasets: np.ndarray):
     np.random.seed(0)
 

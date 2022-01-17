@@ -3,7 +3,6 @@ from datetime import date
 import json
 import pandas as pd
 import numpy as np
-import re
 from io import StringIO
 
 from pandas.core.frame import DataFrame
@@ -45,7 +44,15 @@ def cleanRainfallData(df: pd.DataFrame):
     return newDf
 
 def addThreeDigitFipsToCounties(df: pd.DataFrame):
-    print(df)
+    """ Take the last three digits of the zipcodes to get rid of the generic for NOAA references
+    where the state code differs from the norm.
+
+    Parameter:
+    df: pd.DataFrame
+
+    Returns:
+    newDf: pd.DataFrame with new fips_only variable
+    """
     data = {'county_fips': [], 'county_name': [], 'fips_only': []}
     for row in df.itertuples(index=False):
         if (len(row[0]) == 5):
