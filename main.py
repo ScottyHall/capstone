@@ -8,7 +8,7 @@ import pandas as pd
 from databaseConnection import databaseConnected
 from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable
 from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
-from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram
+from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined
 from machineLearning import mlTester, concatData
 
 
@@ -64,7 +64,6 @@ def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd
     else:
         return False
 
-
 def generateVisualizations(dfDrought):
     # generateScatterPlot(dfDrought)
     # genScatterPltNonlin(dfDrought)
@@ -78,19 +77,49 @@ def generateAllCountyVisualization(dfDrought, yearsNp):
         df = dfDrought.loc[dfDrought['year'] >= year]
         yearStr = year.astype(str)
 
-def generateDataByCounty(dfDrought, counties):
-    """generate additional data by each county
+def getAverageAnnual(dfCombined: pd.DataFrame, counties: np.array, years: np.array):
+    """get the annual PDSI average by county
+    
+    Parameters:
+    dfCombined: pd.DataFrame - combined drought and precip data
+    counties: np.array - np array counties
+
+    Returns:
+    dfPDSI: pd.DataFrame - dataframe with annual average PDSI
     """
-    for county in counties[:10]:
-        countyByYear = dfDrought.loc[dfDrought['countyfips'] == county]
-        pdsi = countyByYear['pdsi']
-        calcMedian = np.median(pdsi)
-        calcAverage = np.average(pdsi)
-        calcStd = np.std(pdsi)
-        calcMin = np.amin(pdsi)
-        calcMax = np.amax(pdsi)
-        # print('Median: {0}, Average: {1}, Std: {2}, Min: {3}, Max: {4}'.format(calcMedian, calcAverage, calcStd, calcMin, calcMax))
-        # genScatterPltNonlin(countyByYear, 'title2')
+    annualMeanData = {'year': [], 'countyFips': [], 'pdsiAvg': [], 'precipAvg': []}
+
+    for i, g in dfCombined.groupby(['county_fips', 'year']):
+        annualMeanData['year'].append(g['year'].unique()[0])
+        annualMeanData['countyFips'].append(g['county_fips'].unique()[0])
+        annualMeanData['pdsiAvg'].append(g['pdsi'].mean())
+        annualMeanData['precipAvg'].append(g['rainfall'].mean())
+
+    dfAnnualMeans = pd.DataFrame(annualMeanData)
+    print('Finished gathering counties')
+
+    return dfAnnualMeans
+
+def visualizations(dfDrought: pd.DataFrame, dfCombined: pd.DataFrame, dfAnnualMeans: pd.DataFrame, years: np.ndarray):
+    """Method to run all visualizations
+
+    Parameters:
+    dfDrought: pd.DataFrame - drought data
+    dfCombined: pd.DataFrame - combined pdsi and precipitation data
+    years: 
+    """
+    print('Starting Visualizations ========================')
+
+    for year in years:
+        # annual precip by year
+        # genCountyPrecipCombined(dfAnnualMeans, 'annualAvgPrecip' + str(year), year)
+
+        # annual pdsi by year
+        # genCountyPDSICombined(dfAnnualMeans, 'annualAvgPDSI' + str(year), year)
+
+        print(year)
+
+    print('Finished Visualizations ========================')
 
 def main():
     # counties = getGeoData()
@@ -121,15 +150,17 @@ def main():
 
     if (dataCleaned):
         print('Data cleaning completed successfully ========================')
-        # df = dfDrought.loc[dfDrought['year'] >= 1960]
-        # numpy data array for machine learning algorithms
 
-        # dfDroughtDataArr = df[['pdsi', 'statefips']].to_numpy()
-        # mlTester(dfDroughtDataArr)
-
+        # dataframe of concatenated drought, precipitation, and state data
         dfCombinedDroughtRainData = concatData(dfDrought, dfRain, dfStates)
-    
-        generateDataByCounty(dfDrought, counties)
+
+        # numpy data array for machine learning algorithms
+        npCombinedDataArr = dfCombinedDroughtRainData[['year', 'month', 'county_fips', 'rainfall', 'state_fips']].to_numpy()
+
+        # gets average annual precip and pdsi by each year by each county
+        dfAnnualMeans = getAverageAnnual(dfCombinedDroughtRainData, counties, years)
+
+        visualizations(dfDrought, dfCombinedDroughtRainData, dfAnnualMeans, years)
 
         # generateVisualizations(dfDrought)
         # generateAllCountyVisualization(dfDrought, years)

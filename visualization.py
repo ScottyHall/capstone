@@ -197,3 +197,53 @@ def stackedHistogram(dfDrought):
     # Reduce opacity to see both histograms
     fig.update_traces(opacity=0.1)
     fig.show()
+
+def genCountyPDSICombined(dfAnnualMeans: pd.DataFrame, name: str, year: int = 1960):
+    """Gen county chart creates figure map of US with filled in counties based on pdsi data
+    saves figure as image using export methods
+
+    Parameters:
+    dfCombined: pd.DataFrame - dataframe for visualization
+    name: str - file name for export
+    year: int - year for visualization
+
+    Returns: None
+    """
+    df = dfAnnualMeans.loc[dfAnnualMeans['year'] == year]
+    print(df)
+    fig = px.choropleth(df, geojson=counties, locations='countyFips', color='pdsiAvg',
+                        title='Annual PDSI {0}'.format(str(year)),
+                        color_continuous_scale="Viridis_r",
+                        range_color=(10, -10),
+                        scope="usa",
+                        labels={'pdsiAvg': 'PDSI Average'}
+                        )
+    fig.update_layout(margin={"r": 0, "t": 50, "l": 0, "b": 0})
+    # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
+    exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
+    # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
+
+def genCountyPrecipCombined(dfAnnualMeans: pd.DataFrame, name: str, year: int = 1960):
+    """Gen county chart creates figure map of US with filled in counties based on precipitation data
+    saves figure as image using export methods
+
+    Parameters:
+    dfCombined: pd.DataFrame - dataframe for visualization
+    name: str - file name for export
+    year: int - year for visualization
+
+    Returns: None
+    """
+    df = dfAnnualMeans.loc[dfAnnualMeans['year'] == year]
+    print(df)
+    fig = px.choropleth(df, geojson=counties, locations='countyFips', color='precipAvg',
+                        title='Annual Precipitation {0}'.format(str(year)),
+                        color_continuous_scale="Viridis_r",
+                        range_color=(0, 10),
+                        scope="usa",
+                        labels={'precipAvg': 'Precipitation Average'}
+                        )
+    fig.update_layout(margin={"r": 0, "t": 50, "l": 0, "b": 0})
+    # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
+    exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
+    # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')

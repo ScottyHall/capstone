@@ -22,7 +22,8 @@ def concatData(dfDrought: pd.DataFrame, dfRain: pd.DataFrame, dfStates: pd.DataF
     dfRain: pd.DataFrame - rainfall data
 
     Returns:
-    dataset: pd.DataFrame - all data merged
+    dataset: pd.DataFrame - all merged data
+    year, month, county_fips, pdsi, rainfall, state_fips
     """
     dfMergeRain = pd.merge(dfRain, dfStates, left_on='state_id', right_on='noaa_state_fips')
 
@@ -34,7 +35,19 @@ def concatData(dfDrought: pd.DataFrame, dfRain: pd.DataFrame, dfStates: pd.DataF
 
     dfMergeRainDrought = pd.merge(dfDrought, dfMergeRain, on=['year', 'countyfips'], how='left')
 
-    return dfMergeRainDrought
+    # month translation dict for tuple index
+    months = {1: 6, 2: 7, 3: 8, 4: 9, 5: 10, 6: 11, 7: 12, 8: 13, 9: 14, 10: 15, 11: 16, 12: 17}
+    dataForDF = {'year': [], 'month': [], 'county_fips': [], 'pdsi': [], 'rainfall': [], 'state_fips': []}
+    for row in dfMergeRainDrought.itertuples(index=False):
+        dataForDF['year'].append(row[0])
+        dataForDF['month'].append(row[1])
+        dataForDF['county_fips'].append(row[3])
+        dataForDF['pdsi'].append(row[4])
+        dataForDF['rainfall'].append(row[months[row[1]]])
+        dataForDF['state_fips'].append(row[2])
+    dfNewDroughtRain = pd.DataFrame(data=dataForDF)
+
+    return dfNewDroughtRain
 
  
 def mlTester(datasets: np.ndarray):
