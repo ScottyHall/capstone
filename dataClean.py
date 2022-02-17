@@ -133,6 +133,49 @@ def insertIntoRain(dataFrame: pd.DataFrame):
         conn.close()
         return False
 
+def insertIntoPdsiPrecip(dataFrame: pd.DataFrame):
+    """Insert pdsiPrecip data into the database
+
+    Parameters:
+    dataFrame: pd.DataFrame
+
+    Returns:
+    bool - data was inserted and commited to db successfully
+    """
+    conn = getDatabaseConnection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM pdsi_precip LIMIT 3;")
+    if (cur.fetchone() == None):
+        totalRows = len(dataFrame.index)
+        currentRow = 0
+        print('Starting PDSI Precip Insert into Database...')
+        try:
+            for row in dataFrame.itertuples(index=False):
+                currentRow += 1
+                percentage = (currentRow / totalRows) * 100
+                if (percentage % 5 == 0):
+                    print('{0}% complete'.format(percentage))
+                sql = cur.mogrify("INSERT INTO pdsi_precip (year, month, county_fips, pdsi, precip, state_fips) VALUES(%s, %s, %s, %s, %s, %s);",
+                                  (row.year, row.month, row.county_fips, row.pdsi, row.rainfall, row.state_fips))
+                cur.execute(sql)
+        except Exception as err:
+            print(err)
+            cur.close()
+            conn.close()
+            return False
+        else:
+            # only commit the data to DB if there is no loss of data from source
+            if (insertAmtEqualsSource(totalRows, currentRow)):
+                conn.commit()
+                return True
+            else:
+                print('PDSI PRECIP DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False            
+    else:
+        cur.close()
+        conn.close()
+        return False
+
 def insertIntoDrought(dataFrame: pd.DataFrame):
     """Insert drought data into the database
 

@@ -1,3 +1,4 @@
+from distutils.log import debug
 from os import stat
 import numpy as np
 from numpy.lib.function_base import median
@@ -6,13 +7,15 @@ from pandas.core.frame import DataFrame
 import plotly.graph_objects as go
 import pandas as pd
 from databaseConnection import databaseConnected
-from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable
-from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
+from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable, createPdsiPrecipTable
+from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, insertIntoPdsiPrecip, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
 from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined
-from machineLearning import mlTester, concatData
+from machineLearning import mlTester, concatData, mlCluster
 
 
-def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd.DataFrame, dfRain: pd.DataFrame, newDB: bool = False):
+def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame,
+                 dfStates: pd.DataFrame, dfRain: pd.DataFrame,
+                 newDB: bool = False):
     """Clean, prep, and insert data into database
     
     Parameters:
@@ -25,10 +28,6 @@ def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame, dfStates: pd
     Returns:
     bool - data cleaned and successfully inserted into database
     """
-    droughtTable = False
-    countiesTable = False
-    statesTable = False
-    rainTable = False
     canInsertIntoDB = False
 
     if (databaseConnected() and newDB):
@@ -92,10 +91,11 @@ def getAverageAnnual(dfCombined: pd.DataFrame, counties: np.array, years: np.arr
     for i, g in dfCombined.groupby(['county_fips', 'year']):
         annualMeanData['year'].append(g['year'].unique()[0])
         annualMeanData['countyFips'].append(g['county_fips'].unique()[0])
-        annualMeanData['pdsiAvg'].append(g['pdsi'].mean())
-        annualMeanData['precipAvg'].append(g['rainfall'].mean())
+        annualMeanData['pdsiAvg'].append(round(g['pdsi'].mean(), 2))
+        annualMeanData['precipAvg'].append(round(g['rainfall'].mean(), 2))
 
     dfAnnualMeans = pd.DataFrame(annualMeanData)
+    dfAnnualMeans = dfAnnualMeans.loc[dfAnnualMeans.index.drop_duplicates()]
     print('Finished gathering counties')
 
     return dfAnnualMeans
@@ -112,16 +112,20 @@ def visualizations(dfDrought: pd.DataFrame, dfCombined: pd.DataFrame, dfAnnualMe
 
     for year in years:
         # annual precip by year
-        # genCountyPrecipCombined(dfAnnualMeans, 'annualAvgPrecip' + str(year), year)
+        genCountyPrecipCombined(dfAnnualMeans, 'annualAvgPrecip' + str(year), year)
 
         # annual pdsi by year
-        # genCountyPDSICombined(dfAnnualMeans, 'annualAvgPDSI' + str(year), year)
+        genCountyPDSICombined(dfAnnualMeans, 'annualAvgPDSI' + str(year), year)
 
         print(year)
 
     print('Finished Visualizations ========================')
 
 def main():
+    populateNewDbTables = False
+    performDataClean = False
+    performVisualizations = False
+
     # counties = getGeoData()
     # ingest source csv data
     dfDrought = ingestCSV()
@@ -143,16 +147,25 @@ def main():
 
     # last param to True if database tables to be dropped and re-inserted
     # send True as the final input on cleanAndPrep to insert new data to database
-    dataCleaned = cleanAndPrep(dfDrought, dfCounties, dfStates, dfRain)
+    if (performDataClean):
+        dataCleaned = cleanAndPrep(dfDrought, dfCounties, dfStates, dfRain, populateNewDbTables)
+    else:
+        dataCleaned = False
 
     years = dfDrought['year'].unique()
     counties = dfDrought['countyfips'].unique()
 
-    if (dataCleaned):
-        print('Data cleaning completed successfully ========================')
+    if (dataCleaned or performDataClean is False):
+        cleanStatus = 'completed successfully' if dataCleaned else 'skipped'
+        print('Data cleaning {0} ========================'.format(cleanStatus))
 
         # dataframe of concatenated drought, precipitation, and state data
         dfCombinedDroughtRainData = concatData(dfDrought, dfRain, dfStates)
+
+        # insert PDSI precip table
+        if (populateNewDbTables):
+            if (createPdsiPrecipTable()):
+                insertIntoPdsiPrecip(dfCombinedDroughtRainData)
 
         # numpy data array for machine learning algorithms
         npCombinedDataArr = dfCombinedDroughtRainData[['year', 'month', 'county_fips', 'rainfall', 'state_fips']].to_numpy()
@@ -160,7 +173,15 @@ def main():
         # gets average annual precip and pdsi by each year by each county
         dfAnnualMeans = getAverageAnnual(dfCombinedDroughtRainData, counties, years)
 
-        visualizations(dfDrought, dfCombinedDroughtRainData, dfAnnualMeans, years)
+        # numpy data array for machine learning algorithms for annual means
+        npAnnualMeans = dfAnnualMeans[['year', 'countyFips', 'pdsiAvg', 'precipAvg']]
+ 
+        # test clustering placeholder
+        mlCluster(npAnnualMeans)
+
+        # Run visualizations
+        if (performVisualizations):
+            visualizations(dfDrought, dfCombinedDroughtRainData, dfAnnualMeans, years)
 
         # generateVisualizations(dfDrought)
         # generateAllCountyVisualization(dfDrought, years)

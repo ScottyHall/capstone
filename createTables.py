@@ -46,6 +46,43 @@ def createRainTable():
         print('No database connection')
         return False
 
+def createPdsiPrecipTable():
+    """Create pdsiPrecip table in postgres
+
+    Parameters: None
+
+    Returns: boolean True on success"""
+    conn = getDatabaseConnection()
+    if (conn):
+        cur = conn.cursor()
+        try:
+            cur.execute('DROP TABLE IF EXISTS pdsi_precip;')
+            cur.execute('''
+                CREATE TABLE IF NOT EXISTS pdsi_precip(
+                    id serial PRIMARY KEY,
+                    year smallint NOT NULL,
+                    month smallint NOT NULL,
+                    county_fips varchar(5) NOT NULL,
+                    pdsi numeric NOT NULL,
+                    precip NUMERIC NOT NULL,
+                    state_fips varchar(2) NOT NULL
+                );''')
+            conn.commit()
+        except Exception as err:
+            print('--- Failed to create pdsiPrecip table ---')
+            print(err)
+            cur.close()
+            conn.close()
+            return False
+        else:
+            print('--- Successfully Created pdsiPrecip table in database ---')
+            cur.close()
+            conn.close()
+            return True
+    else:
+        print('No database connection')
+        return False
+
 def createDroughtTable():
     """Create drought table in postgres
 
