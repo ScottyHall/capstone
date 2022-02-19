@@ -1,5 +1,7 @@
 from distutils.log import debug
 from os import stat
+import sys
+from typing import Dict
 import numpy as np
 from numpy.lib.function_base import median
 
@@ -9,15 +11,15 @@ import pandas as pd
 from databaseConnection import databaseConnected
 from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable, createPdsiPrecipTable
 from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, insertIntoPdsiPrecip, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
-from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined
-from machineLearning import mlTester, concatData, mlCluster
+from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined, genCountyLowerQuartile, genBubbleChart
+from machineLearning import getAnnualQuantileCountyDatasetPdsi, mlTester, concatData, mlCluster, kNearestNeighborModels
 
 
 def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame,
                  dfStates: pd.DataFrame, dfRain: pd.DataFrame,
                  newDB: bool = False):
     """Clean, prep, and insert data into database
-    
+
     Parameters:
     dfDrought: pd.DataFrame - drought data
     dfCounties: pd.DataFrame - county data
@@ -63,6 +65,7 @@ def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame,
     else:
         return False
 
+
 def generateVisualizations(dfDrought):
     # generateScatterPlot(dfDrought)
     # genScatterPltNonlin(dfDrought)
@@ -71,14 +74,16 @@ def generateVisualizations(dfDrought):
     # visualizeCountiesAllYears(dfDrought)
     stackedHistogram(dfDrought)
 
+
 def generateAllCountyVisualization(dfDrought, yearsNp):
     for year in yearsNp:
         df = dfDrought.loc[dfDrought['year'] >= year]
         yearStr = year.astype(str)
 
+
 def getAverageAnnual(dfCombined: pd.DataFrame, counties: np.array, years: np.array):
     """get the annual PDSI average by county
-    
+
     Parameters:
     dfCombined: pd.DataFrame - combined drought and precip data
     counties: np.array - np array counties
@@ -86,11 +91,14 @@ def getAverageAnnual(dfCombined: pd.DataFrame, counties: np.array, years: np.arr
     Returns:
     dfPDSI: pd.DataFrame - dataframe with annual average PDSI
     """
-    annualMeanData = {'year': [], 'countyFips': [], 'pdsiAvg': [], 'precipAvg': []}
+    print('Calculating Averages Consolidated Annually ========================')
+    annualMeanData = {'year': [], 'countyFips': [], 'stateFips': [],
+                      'pdsiAvg': [], 'precipAvg': []}
 
-    for i, g in dfCombined.groupby(['county_fips', 'year']):
+    for index, g in dfCombined.groupby(['county_fips', 'year']):
         annualMeanData['year'].append(g['year'].unique()[0])
         annualMeanData['countyFips'].append(g['county_fips'].unique()[0])
+        annualMeanData['stateFips'].append(g['state_fips'].unique()[0]),
         annualMeanData['pdsiAvg'].append(round(g['pdsi'].mean(), 2))
         annualMeanData['precipAvg'].append(round(g['rainfall'].mean(), 2))
 
@@ -99,6 +107,7 @@ def getAverageAnnual(dfCombined: pd.DataFrame, counties: np.array, years: np.arr
     print('Finished gathering counties')
 
     return dfAnnualMeans
+
 
 def visualizations(dfDrought: pd.DataFrame, dfCombined: pd.DataFrame, dfAnnualMeans: pd.DataFrame, years: np.ndarray):
     """Method to run all visualizations
@@ -112,7 +121,8 @@ def visualizations(dfDrought: pd.DataFrame, dfCombined: pd.DataFrame, dfAnnualMe
 
     for year in years:
         # annual precip by year
-        genCountyPrecipCombined(dfAnnualMeans, 'annualAvgPrecip' + str(year), year)
+        genCountyPrecipCombined(
+            dfAnnualMeans, 'annualAvgPrecip' + str(year), year)
 
         # annual pdsi by year
         genCountyPDSICombined(dfAnnualMeans, 'annualAvgPDSI' + str(year), year)
@@ -121,10 +131,22 @@ def visualizations(dfDrought: pd.DataFrame, dfCombined: pd.DataFrame, dfAnnualMe
 
     print('Finished Visualizations ========================')
 
+
+def bubbleVisualizations(quartilePdsi, years):
+    genBubbleChart(quartilePdsi.get(
+        'q1'), years, 'Annual Average PDSI Lower Quartile (Dry)', 'Q1', 'LowerQuartileAnnualAvgPdsi', 'k-nearest Neighbor Regression Annual PDSI Lower Quartile')
+
+    genBubbleChart(quartilePdsi.get(
+        'q4'), years, 'Annual Average PDSI Upper Quartile (Wet)', 'Q4', 'UpperQuartileAnnualAvgPdsi', 'k-nearest Neighbor Regression Annual PDSI Upper Quartile')
+
+    genCountyLowerQuartile(quartilePdsi.get('q4'), 'LowerQuartilePdsi')
+
+
 def main():
     populateNewDbTables = False
     performDataClean = False
     performVisualizations = False
+    performBubbleVisualizations = True
 
     # counties = getGeoData()
     # ingest source csv data
@@ -148,7 +170,8 @@ def main():
     # last param to True if database tables to be dropped and re-inserted
     # send True as the final input on cleanAndPrep to insert new data to database
     if (performDataClean):
-        dataCleaned = cleanAndPrep(dfDrought, dfCounties, dfStates, dfRain, populateNewDbTables)
+        dataCleaned = cleanAndPrep(
+            dfDrought, dfCounties, dfStates, dfRain, populateNewDbTables)
     else:
         dataCleaned = False
 
@@ -167,21 +190,31 @@ def main():
             if (createPdsiPrecipTable()):
                 insertIntoPdsiPrecip(dfCombinedDroughtRainData)
 
-        # numpy data array for machine learning algorithms
-        npCombinedDataArr = dfCombinedDroughtRainData[['year', 'month', 'county_fips', 'rainfall', 'state_fips']].to_numpy()
-
         # gets average annual precip and pdsi by each year by each county
-        dfAnnualMeans = getAverageAnnual(dfCombinedDroughtRainData, counties, years)
+        dfAnnualMeans = getAverageAnnual(
+            dfCombinedDroughtRainData, counties, years)
+
+        annualPdsiQuantile = dfAnnualMeans['pdsiAvg'].quantile(q=[0.25, 0.75])
+        annualPrecipQuatile = dfAnnualMeans['precipAvg'].quantile(q=[
+                                                                  0.25, 0.75])
+
+        quartilePdsi = getAnnualQuantileCountyDatasetPdsi(
+            dfAnnualMeans, annualPdsiQuantile, annualPrecipQuatile)
+
+        if (performBubbleVisualizations):
+            bubbleVisualizations(quartilePdsi, years)
 
         # numpy data array for machine learning algorithms for annual means
-        npAnnualMeans = dfAnnualMeans[['year', 'countyFips', 'pdsiAvg', 'precipAvg']]
- 
+        npAnnualMeans = dfAnnualMeans[[
+            'year', 'countyFips', 'stateFips', 'pdsiAvg', 'precipAvg']]
+
         # test clustering placeholder
-        mlCluster(npAnnualMeans)
+        # mlCluster(npAnnualMeans)
 
         # Run visualizations
         if (performVisualizations):
-            visualizations(dfDrought, dfCombinedDroughtRainData, dfAnnualMeans, years)
+            visualizations(dfDrought, dfCombinedDroughtRainData,
+                           dfAnnualMeans, years)
 
         # generateVisualizations(dfDrought)
         # generateAllCountyVisualization(dfDrought, years)

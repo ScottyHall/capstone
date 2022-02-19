@@ -43,6 +43,7 @@ def cleanRainfallData(df: pd.DataFrame):
     newDf = pd.DataFrame(data)
     return newDf
 
+
 def addThreeDigitFipsToCounties(df: pd.DataFrame):
     """ Take the last three digits of the zipcodes to get rid of the generic for NOAA references
     where the state code differs from the norm.
@@ -63,18 +64,22 @@ def addThreeDigitFipsToCounties(df: pd.DataFrame):
     newDf = pd.DataFrame(data)
     return newDf
 
+
 def getGeoData(geoSource: str = 'sourceData/geo.json'):
     with open(geoSource) as f:
         counties = json.load(f)
     return counties
+
 
 def insertAmtEqualsSource(dfLen: int, dbTblLen: int):
     if (dfLen == dbTblLen):
         print('Source Rows and DB Rows Match. Total Rows: {0}'.format(dfLen))
         return True
     else:
-        print('Source Data Rows: {0} | Database rows: {1}'.format(dfLen, dbTblLen))
+        print('Source Data Rows: {0} | Database rows: {1}'.format(
+            dfLen, dbTblLen))
         return False
+
 
 def cleanFipsCols(df: pd.DataFrame, column: str, lenCol: int):
     """Clean fips col edits the fips codes to ensure all are lenCol digits long
@@ -89,6 +94,7 @@ def cleanFipsCols(df: pd.DataFrame, column: str, lenCol: int):
     """
     df[column] = df[column].str.zfill(lenCol)
     return df
+
 
 def insertIntoRain(dataFrame: pd.DataFrame):
     """Insert rain data into the database
@@ -126,12 +132,14 @@ def insertIntoRain(dataFrame: pd.DataFrame):
                 conn.commit()
                 return True
             else:
-                print('RAIN DATA NOT COMMITED TO DB! Row counts do not match source data')
-                return False            
+                print(
+                    'RAIN DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False
     else:
         cur.close()
         conn.close()
         return False
+
 
 def insertIntoPdsiPrecip(dataFrame: pd.DataFrame):
     """Insert pdsiPrecip data into the database
@@ -169,12 +177,14 @@ def insertIntoPdsiPrecip(dataFrame: pd.DataFrame):
                 conn.commit()
                 return True
             else:
-                print('PDSI PRECIP DATA NOT COMMITED TO DB! Row counts do not match source data')
-                return False            
+                print(
+                    'PDSI PRECIP DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False
     else:
         cur.close()
         conn.close()
         return False
+
 
 def insertIntoDrought(dataFrame: pd.DataFrame):
     """Insert drought data into the database
@@ -212,8 +222,9 @@ def insertIntoDrought(dataFrame: pd.DataFrame):
                 conn.commit()
                 return True
             else:
-                print('DROUGHT DATA NOT COMMITED TO DB! Row counts do not match source data')
-                return False            
+                print(
+                    'DROUGHT DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False
     else:
         cur.close()
         conn.close()
@@ -256,8 +267,9 @@ def insertIntoStates(dataFrame: pd.DataFrame):
                 conn.commit()
                 return True
             else:
-                print('STATES DATA NOT COMMITED TO DB! Row counts do not match source data')
-                return False        
+                print(
+                    'STATES DATA NOT COMMITED TO DB! Row counts do not match source data')
+                return False
     else:
         cur.close()
         conn.close()
@@ -300,7 +312,8 @@ def insertIntoCounties(dataFrame: pd.DataFrame):
                 conn.commit()
                 return True
             else:
-                print('COUNTIES DATA NOT COMMITED TO DB! Row counts do not match source data')
+                print(
+                    'COUNTIES DATA NOT COMMITED TO DB! Row counts do not match source data')
                 return False
     else:
         cur.close()

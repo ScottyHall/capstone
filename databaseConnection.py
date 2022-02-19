@@ -18,6 +18,7 @@ def getDatabaseConnection(dbName='capstone', user='punchcard'):
     else:
         return conn
 
+
 def databaseConnected():
     """Check if database connection can be established
 

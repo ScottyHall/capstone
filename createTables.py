@@ -1,5 +1,6 @@
 from databaseConnection import getDatabaseConnection
 
+
 def createRainTable():
     """Create rain table in postgres
 
@@ -46,6 +47,7 @@ def createRainTable():
         print('No database connection')
         return False
 
+
 def createPdsiPrecipTable():
     """Create pdsiPrecip table in postgres
 
@@ -82,6 +84,7 @@ def createPdsiPrecipTable():
     else:
         print('No database connection')
         return False
+
 
 def createDroughtTable():
     """Create drought table in postgres
