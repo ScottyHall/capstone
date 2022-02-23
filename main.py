@@ -169,7 +169,7 @@ def annualPdsiPrecipCorr(dfCombinedDroughtRainData: pd.DataFrame, years):
 
 def main():
     populateNewDbTables = False
-    performDataClean = False
+    performDataClean = True
     performVisualizations = False
     performQuartileVisualizations = True
     performLineVisualizations = True

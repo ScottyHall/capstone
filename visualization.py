@@ -313,8 +313,8 @@ def lineChartCorr(df: pd.DataFrame, corrAvg: float, name):
                   yref='y'
                   )
 
-    fig.add_annotation(x=1900, y=corrAvg,
-                       text='Correlation Average: {0}'.format(corrAvg),
+    fig.add_annotation(x=1925, y=corrAvg,
+                       text='Correlation Average: {:0.2f}'.format(corrAvg),
                        showarrow=False,
                        yshift=10)
 

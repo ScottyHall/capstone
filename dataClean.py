@@ -387,7 +387,7 @@ def getMissingStates(states: pd.DataFrame, drought: pd.DataFrame):
     leftJoin = states.merge(drought, how='left', left_on=[
                             'state_fips'], right_on=['statefips'])
     naRows = leftJoin[leftJoin['year'].isna()]
-    print('Known States Not Found {0} ========================'.format(
+    print('Known States Not Found {0} (Expected 7)========================'.format(
         len(naRows)))
     print(naRows['state_name'])
     missingStates = naRows['state_fips'].values
@@ -414,7 +414,7 @@ def getMissingCounties(counties: pd.DataFrame, drought: pd.DataFrame):
     leftJoin = counties.merge(drought, how='left', left_on=[
         'county_fips'], right_on=['countyfips'])
     naRows = leftJoin[leftJoin['year'].isna()]
-    print('Known Counties Not Found {0} ========================'.format(
+    print('Known Counties Not Found {0} (Expected 88)========================'.format(
         len(naRows)))
     print(naRows['county_name'])
     missingCounties = naRows['county_fips'].values
