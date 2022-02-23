@@ -54,7 +54,8 @@ def exportPlotlyPNG(figure: plotly.graph_objects, fileName: str, exportDir: str 
     """
     if (os.path.exists(exportDir)):
         try:
-            figure.write_image(exportDir + '/' + fileName + '.png')
+            figure.write_image(exportDir + '/' + fileName +
+                               '.png', width=1024, height=768)
         except Exception as err:
             print('Could not export plotly png: {0}'.format(err))
         else:
@@ -94,15 +95,15 @@ def exportPlotlyHTML(figure: plotly.graph_objects, fileName: str, exportDir: str
 
 
 def generateScatterPlot(df, title: str):
-    fig = px.scatter(df, x="year", y="pdsi", color='pdsi')
+    fig = px.scatter(df, x='year', y='pdsi', color='pdsi')
     exportPlotlySVG(fig, title)
 
 
 def genScatterPltNonlin(df: pd.DataFrame, title: str):
     # df = df.loc[df['year'] == 1950]
-    fig = px.scatter(df, x="year", y="pdsi",
-                     trendline="ols", trendline_options=dict(log_x=True),
-                     title="Log-transformed fit on linear axes")
+    fig = px.scatter(df, x='year', y='pdsi',
+                     trendline='ols', trendline_options=dict(log_x=True),
+                     title='Log-transformed fit on linear axes')
     exportPlotlySVG(fig, title)
 
 
@@ -118,13 +119,13 @@ def genCountyChartTimeline(dfDrought):
     df = dfDrought.loc[dfDrought['year'] >= 1960]
     # df = dfDrought
     fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
-                        color_continuous_scale="Viridis_r",
+                        color_continuous_scale='Viridis_r',
                         animation_frame='year',
                         range_color=(10, -10),
-                        scope="usa",
+                        scope='usa',
                         labels={'pdsi': 'PDSI'}
                         )
-    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+    fig.update_layout(margin={'r': 0, 't': 0, 'l': 0, 'b': 0})
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     # exportPlotlyPNG(fig, 'countyMap2011', 'visualizations/countyMaps')
     exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
@@ -142,12 +143,12 @@ def genCountyChart(dfDrought, name: str):
     # df = dfDrought.loc[dfDrought['year'] >= 1960]
     df = dfDrought
     fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
-                        color_continuous_scale="Viridis_r",
+                        color_continuous_scale='Viridis_r',
                         range_color=(10, -10),
-                        scope="usa",
+                        scope='usa',
                         labels={'pdsi': 'PDSI'}
                         )
-    fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+    fig.update_layout(margin={'r': 0, 't': 0, 'l': 0, 'b': 0})
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
     # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
@@ -170,12 +171,12 @@ def visualizeCountiesAllYears(dfDrought):
         print('generating map for year {0}'.format(year))
         df = dfDrought.loc[dfDrought['year'] >= year]
         fig = px.choropleth(df, geojson=counties, locations='countyfips', color='pdsi',
-                            color_continuous_scale="Viridis_r",
+                            color_continuous_scale='Viridis_r',
                             range_color=(10, -10),
-                            scope="usa",
+                            scope='usa',
                             labels={'pdsi': 'PDSI'}
                             )
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        fig.update_layout(margin={'r': 0, 't': 0, 'l': 0, 'b': 0})
         exportPlotlyPNG(fig, 'countyMap{0}'.format(
             year.astype(str)), 'visualizations/countyMaps')
         fig = None
@@ -272,11 +273,11 @@ def genBubbleChart(df: pd.DataFrame, years, title: str, quartile: str, name: str
     )
 
     fig.update_layout(coloraxis_colorbar=dict(
-        title="Precipitation Avg",
-        thicknessmode="pixels", thickness=20,
-        lenmode="pixels", len=200,
-        yanchor="top", y=1,
-        ticks="outside", ticksuffix=" inches",
+        title='Precipitation Avg',
+        thicknessmode='pixels', thickness=20,
+        lenmode='pixels', len=200,
+        yanchor='top', y=1,
+        ticks='inside', ticksuffix=' inches',
         dtick=0.5
     ))
 
@@ -287,7 +288,46 @@ def genBubbleChart(df: pd.DataFrame, years, title: str, quartile: str, name: str
     exportPlotlyPNG(fig, name, 'visualizations/bubbleCharts')
 
 
-def genCountyLowerQuartile(dfLowerQuartile: pd.DataFrame, name: str):
+def lineChartCorr(df: pd.DataFrame, corrAvg: float, name):
+    """Generate line chart from correlation coefficient data frame
+
+    year and float
+    """
+    title = 'PDSI to Precipitation Correlation by Year'
+    labels = ['PDSI - Precipitation Correlation Coeff']
+    fig = px.scatter(df, x='year', y='corrCoeff',
+                     text='year',
+                     color_discrete_sequence=px.colors.qualitative.Pastel,
+                     title=title,
+                     trendline='ols',
+                     trendline_color_override='orchid',
+                     labels=labels)
+
+    fig.add_shape(type='line',
+                  line=dict(color='Blue',),
+                  x0=1895,
+                  y0=corrAvg,
+                  x1=2016,
+                  y1=corrAvg,
+                  xref='x',
+                  yref='y'
+                  )
+
+    fig.add_annotation(x=1900, y=corrAvg,
+                       text='Correlation Average: {0}'.format(corrAvg),
+                       showarrow=False,
+                       yshift=10)
+
+    fig.update_layout(xaxis_title='Year',
+                      yaxis_title='PDSI precipitation Correlation Coefficient'
+                      )
+
+    fig.update_traces(mode='lines')
+
+    exportPlotlyPNG(fig, name, 'visualizations/lineCharts')
+
+
+def genCountyLowerQuartilePdsi(dfLowerQuartile: pd.DataFrame, name: str):
     """Gen county chart creates figure map of US with filled in counties based on pdsi data
     saves figure as image using export methods
 
@@ -299,15 +339,59 @@ def genCountyLowerQuartile(dfLowerQuartile: pd.DataFrame, name: str):
     Returns: None
     """
     df = dfLowerQuartile
-    fig = px.choropleth(df, geojson=counties, locations='countyFips', color='year',
-                        title='Annual PDSI Lower Quartile {0}'.format(
-                            str(dfLowerQuartile['year'].values[0])),
-                        color_continuous_scale="Viridis_r",
-                        range_color=(1895, 2016),
-                        scope="usa",
+    df = df.loc[df['year'] >= 2001]
+    fig = px.choropleth(df, geojson=counties, locations='countyFips', color='precipAvg',
+                        title='Annual PDSI Lower Quartile for 2001 - 2016',
+                        color_continuous_scale='Viridis_r',
+                        range_color=(0, 10),
+                        scope='usa',
                         labels={'year': 'Year'}
                         )
-    fig.update_layout(margin={"r": 0, "t": 50, "l": 0, "b": 0})
+    fig.update_layout(margin={'r': 0, 't': 50, 'l': 0, 'b': 0})
+
+    fig.update_layout(coloraxis_colorbar=dict(
+        title='Precipitation Avg',
+        thicknessmode='pixels', thickness=20,
+        lenmode='pixels', len=200,
+        yanchor='top', y=1,
+        ticks='inside', ticksuffix=' inches',
+        dtick=2
+    ))
+    # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
+    exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
+    # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
+
+
+def genCountyLowerQuartilePrecip(dfLowerQuartile: pd.DataFrame, name: str):
+    """Gen county chart creates figure map of US with filled in counties based on pdsi data
+    saves figure as image using export methods
+
+    Parameters:
+    dfCombined: pd.DataFrame - dataframe for visualization
+    name: str - file name for export
+    year: int - year for visualization
+
+    Returns: None
+    """
+    df = dfLowerQuartile
+    df = df.loc[df['year'] >= 2001]
+    fig = px.choropleth(df, geojson=counties, locations='countyFips', color='pdsiAvg',
+                        title='Annual Precipitation Lower Quartile for 2001 - 2016',
+                        color_continuous_scale='Viridis_r',
+                        range_color=(-10, 10),
+                        scope='usa',
+                        labels={'year': 'Year'}
+                        )
+    fig.update_layout(margin={'r': 0, 't': 50, 'l': 0, 'b': 0})
+
+    fig.update_layout(coloraxis_colorbar=dict(
+        title='PDSI Avg',
+        thicknessmode='pixels', thickness=20,
+        lenmode='pixels', len=200,
+        yanchor='top', y=1,
+        ticks='inside',
+        dtick=2
+    ))
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
     # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
@@ -327,12 +411,12 @@ def genCountyPDSICombined(dfAnnualMeans: pd.DataFrame, name: str, year: int = 19
     df = dfAnnualMeans.loc[dfAnnualMeans['year'] == year]
     fig = px.choropleth(df, geojson=counties, locations='countyFips', color='pdsiAvg',
                         title='Annual PDSI {0}'.format(str(year)),
-                        color_continuous_scale="Viridis_r",
+                        color_continuous_scale='Viridis_r',
                         range_color=(10, -10),
-                        scope="usa",
+                        scope='usa',
                         labels={'pdsiAvg': 'PDSI Average'}
                         )
-    fig.update_layout(margin={"r": 0, "t": 50, "l": 0, "b": 0})
+    fig.update_layout(margin={'r': 0, 't': 50, 'l': 0, 'b': 0})
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
     # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')
@@ -352,12 +436,12 @@ def genCountyPrecipCombined(dfAnnualMeans: pd.DataFrame, name: str, year: int = 
     df = dfAnnualMeans.loc[dfAnnualMeans['year'] == year]
     fig = px.choropleth(df, geojson=counties, locations='countyFips', color='precipAvg',
                         title='Annual Precipitation {0}'.format(str(year)),
-                        color_continuous_scale="Viridis_r",
+                        color_continuous_scale='Viridis_r',
                         range_color=(0, 10),
-                        scope="usa",
+                        scope='usa',
                         labels={'precipAvg': 'Precipitation Average'}
                         )
-    fig.update_layout(margin={"r": 0, "t": 50, "l": 0, "b": 0})
+    fig.update_layout(margin={'r': 0, 't': 50, 'l': 0, 'b': 0})
     # exportPlotlyHTML(fig, 'countyMap', 'visualizations/countyMaps/html')
     exportPlotlyPNG(fig, name, 'visualizations/countyMaps')
     # exportPlotlySVG(fig, 'countyMap2011', 'visualizations/countyMaps')

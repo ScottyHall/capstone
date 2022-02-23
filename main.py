@@ -11,8 +11,8 @@ import pandas as pd
 from databaseConnection import databaseConnected
 from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable, createPdsiPrecipTable
 from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, insertIntoPdsiPrecip, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
-from visualization import exportPlotlySVG, generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined, genCountyLowerQuartile, genBubbleChart
-from machineLearning import getAnnualQuantileCountyDatasetPdsi, mlTester, concatData, mlCluster, kNearestNeighborModels
+from visualization import generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined, genCountyLowerQuartilePdsi, genCountyLowerQuartilePrecip, genBubbleChart, lineChartCorr
+from machineLearning import getAnnualQuantileCountyDatasetPdsi, getAnnualQuantileCountyDatasetPrecip, concatData
 
 
 def cleanAndPrep(dfDrought: pd.DataFrame, dfCounties: pd.DataFrame,
@@ -132,21 +132,47 @@ def visualizations(dfDrought: pd.DataFrame, dfCombined: pd.DataFrame, dfAnnualMe
     print('Finished Visualizations ========================')
 
 
-def bubbleVisualizations(quartilePdsi, years):
+def quartileVisualizations(quartilePdsi, quartilePrecip, years):
+    """Generate visualizations that depend on initial binning on quartile
+
+    Parameters:
+    quartilePdsi
+    quartilePrecip
+    years: int[] - array of valid years to calculate off of
+
+    Returns: Void
+    """
     genBubbleChart(quartilePdsi.get(
         'q1'), years, 'Annual Average PDSI Lower Quartile (Dry)', 'Q1', 'LowerQuartileAnnualAvgPdsi', 'k-nearest Neighbor Regression Annual PDSI Lower Quartile')
 
     genBubbleChart(quartilePdsi.get(
-        'q4'), years, 'Annual Average PDSI Upper Quartile (Wet)', 'Q4', 'UpperQuartileAnnualAvgPdsi', 'k-nearest Neighbor Regression Annual PDSI Upper Quartile')
+        'q3'), years, 'Annual Average PDSI Upper Quartile (Wet)', 'Q3', 'UpperQuartileAnnualAvgPdsi', 'k-nearest Neighbor Regression Annual PDSI Upper Quartile')
 
-    genCountyLowerQuartile(quartilePdsi.get('q4'), 'LowerQuartilePdsi')
+    genCountyLowerQuartilePdsi(quartilePdsi.get('q1'), 'LowerQuartilePdsi')
+
+    genCountyLowerQuartilePrecip(
+        quartilePrecip.get('q1'), 'LowerQuartilePrecip')
+
+
+def annualPdsiPrecipCorr(dfCombinedDroughtRainData: pd.DataFrame, years):
+    forDataFrame = {'year': [], 'corrCoeff': []}
+    for year in years:
+        corrCoeff = dfCombinedDroughtRainData.loc[dfCombinedDroughtRainData['year'] == year].corr(
+            'pearson')['rainfall']['pdsi']
+        if (corrCoeff):
+            forDataFrame['year'].append(year)
+            forDataFrame['corrCoeff'].append(corrCoeff)
+    dfCorrCoeff = pd.DataFrame(data=forDataFrame)
+
+    return dfCorrCoeff
 
 
 def main():
     populateNewDbTables = False
     performDataClean = False
     performVisualizations = False
-    performBubbleVisualizations = True
+    performQuartileVisualizations = True
+    performLineVisualizations = True
 
     # counties = getGeoData()
     # ingest source csv data
@@ -194,30 +220,34 @@ def main():
         dfAnnualMeans = getAverageAnnual(
             dfCombinedDroughtRainData, counties, years)
 
+        # get the thresholds for q1 and q3 along with IQR
         annualPdsiQuantile = dfAnnualMeans['pdsiAvg'].quantile(q=[0.25, 0.75])
         annualPrecipQuatile = dfAnnualMeans['precipAvg'].quantile(q=[
                                                                   0.25, 0.75])
 
+        # get the correlation between pdsi and precipitation separated by year
+        corrByYear = annualPdsiPrecipCorr(dfCombinedDroughtRainData, years)
+        corrAvg = dfAnnualMeans.corr('pearson')['pdsiAvg']['precipAvg']
+        print(
+            'Correlation PDSI and Precipitation all yearly averages: {0}'.format(corrAvg))
+
         quartilePdsi = getAnnualQuantileCountyDatasetPdsi(
             dfAnnualMeans, annualPdsiQuantile, annualPrecipQuatile)
 
-        if (performBubbleVisualizations):
-            bubbleVisualizations(quartilePdsi, years)
+        quartilePrecip = getAnnualQuantileCountyDatasetPrecip(
+            dfAnnualMeans, annualPdsiQuantile, annualPrecipQuatile)
 
-        # numpy data array for machine learning algorithms for annual means
-        npAnnualMeans = dfAnnualMeans[[
-            'year', 'countyFips', 'stateFips', 'pdsiAvg', 'precipAvg']]
+        if (performQuartileVisualizations):
+            quartileVisualizations(quartilePdsi, quartilePrecip, years)
 
-        # test clustering placeholder
-        # mlCluster(npAnnualMeans)
+        if (performLineVisualizations and corrAvg):
+            lineChartCorr(corrByYear, corrAvg, 'correlationPdsiPrecip')
 
         # Run visualizations
         if (performVisualizations):
             visualizations(dfDrought, dfCombinedDroughtRainData,
                            dfAnnualMeans, years)
 
-        # generateVisualizations(dfDrought)
-        # generateAllCountyVisualization(dfDrought, years)
     else:
         print('Could not process data further, failed cleaning process')
 

@@ -3,7 +3,6 @@ from datetime import date
 import json
 import pandas as pd
 import numpy as np
-from io import StringIO
 
 from pandas.core.frame import DataFrame
 from databaseConnection import getDatabaseConnection
@@ -354,6 +353,15 @@ def insertMissingCounties():
     if (cur.fetchone() == None):
         cur.execute(
             "INSERT INTO counties (fips, name, fips_only) VALUES('12086', 'Miami-Dade County', '086');")
+
+    """
+    South Dakota, 2015: Shannon County (FIPS 46113) is renamed to Oglala Lakota County (FIPS 46102).
+    Action: replace FIPS code 46102 with the old code 46113.
+    """
+    if (cur.fetchone() == None):
+        cur.execute(
+            "INSERT INTO counties (fips, name, fips_only) VALUES('46102', 'Oglala Lakota County', '102');"
+        )
 
     conn.commit()
     cur.close()
