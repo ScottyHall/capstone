@@ -11,7 +11,7 @@ import pandas as pd
 from databaseConnection import databaseConnected
 from createTables import createDroughtTable, createCountiesTable, createStatesTable, createRainTable, createPdsiPrecipTable
 from dataClean import ingestCSV, cleanFips, insertIntoDrought, insertIntoStates, insertIntoCounties, insertMissingCounties, insertIntoPdsiPrecip, cleanFipsCols, getGeoData, cleanRainfallData, insertIntoRain, addThreeDigitFipsToCounties
-from visualization import generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined, genCountyLowerQuartilePdsi, genCountyLowerQuartilePrecip, genBubbleChart, lineChartCorr
+from visualization import generateScatterPlot, genScatterPltNonlin, genCountyChartTimeline, genCountyChart, lineChartPrecip, visualizeCountiesAllYears, stackedHistogram, genCountyPrecipCombined, genCountyPDSICombined, genCountyLowerQuartilePdsi, genCountyLowerQuartilePrecip, genBubbleChart, lineChartCorr
 from machineLearning import getAnnualQuantileCountyDatasetPdsi, getAnnualQuantileCountyDatasetPrecip, concatData
 
 
@@ -167,6 +167,22 @@ def annualPdsiPrecipCorr(dfCombinedDroughtRainData: pd.DataFrame, years):
     return dfCorrCoeff
 
 
+def annualPrecipCombined(dfAnnualMeans: pd.DataFrame, years):
+    forDataFrame = {'year': [], 'precipAvg': [], 'precipMedian': []}
+    for year in years:
+        precipAvg = dfAnnualMeans.loc[dfAnnualMeans['year']
+                                      == year]['precipAvg'].mean()
+        precipMedian = dfAnnualMeans.loc[dfAnnualMeans['year']
+                                         == year]['precipAvg'].median()
+        if (precipAvg and precipMedian):
+            forDataFrame['year'].append(year)
+            forDataFrame['precipAvg'].append(precipAvg)
+            forDataFrame['precipMedian'].append(precipMedian)
+    dfAnnualPrecipCombined = pd.DataFrame(data=forDataFrame)
+
+    return dfAnnualPrecipCombined
+
+
 def main():
     populateNewDbTables = False
     performDataClean = True
@@ -220,6 +236,8 @@ def main():
         dfAnnualMeans = getAverageAnnual(
             dfCombinedDroughtRainData, counties, years)
 
+        dfAnnualPrecipCombined = annualPrecipCombined(dfAnnualMeans, years)
+
         # get the thresholds for q1 and q3 along with IQR
         annualPdsiQuantile = dfAnnualMeans['pdsiAvg'].quantile(q=[0.25, 0.75])
         annualPrecipQuatile = dfAnnualMeans['precipAvg'].quantile(q=[
@@ -241,6 +259,7 @@ def main():
             quartileVisualizations(quartilePdsi, quartilePrecip, years)
 
         if (performLineVisualizations and corrAvg):
+            lineChartPrecip(dfAnnualPrecipCombined, corrAvg, 'precipAvg')
             lineChartCorr(corrByYear, corrAvg, 'correlationPdsiPrecip')
 
         # Run visualizations

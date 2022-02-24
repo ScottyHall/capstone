@@ -213,18 +213,18 @@ def knNeighbor(df: pd.DataFrame, title: str, name: str, mlTitle: str, quartile: 
 
     Get the weighted and unweighted average of nearest plots to get the regression lines
     """
-    kNn = kNearestNeighborModels(df)
-    x_range = kNn.get('xRange')
-    y_dist = kNn.get('yDist')
-    y_uni = kNn.get('yUni')
-
     fig = px.scatter(
         df, x='year', y='countyAmt',
+        opacity=0.65,
         trendline='lowess',
-        opacity=0.65, title=mlTitle
+        title=mlTitle
     )
-    fig.add_traces(go.Scatter(x=x_range, y=y_uni, name='Uniform Weight'))
-    fig.add_traces(go.Scatter(x=x_range, y=y_dist, name='Distance Weight'))
+    kNn = kNearestNeighborModels(df)
+    xRange = kNn.get('xRange')
+    yDist = kNn.get('yDist')
+    yUni = kNn.get('yUni')
+    fig.add_traces(go.Scatter(x=xRange, y=yUni, name='Uniform Weight'))
+    fig.add_traces(go.Scatter(x=xRange, y=yDist, name='Distance Weight'))
 
     fig.update_layout(xaxis_title='Year',
                       yaxis_title='Number of Counties {0} PDSI Avg'.format(quartile))
@@ -320,6 +320,36 @@ def lineChartCorr(df: pd.DataFrame, corrAvg: float, name):
 
     fig.update_layout(xaxis_title='Year',
                       yaxis_title='PDSI precipitation Correlation Coefficient'
+                      )
+
+    fig.update_traces(mode='lines')
+
+    exportPlotlyPNG(fig, name, 'visualizations/lineCharts')
+
+
+def lineChartPrecip(df: pd.DataFrame, corrAvg: float, name):
+    """Generate line chart from correlation coefficient data frame
+
+    year and float
+    """
+    title = 'Monthly Precipitation Average and Median By Year'
+    labels = ['Monthly Precipitation']
+    fig = px.scatter(df, x='year', y='precipAvg',
+                     opacity=0,
+                     text='year',
+                     color_discrete_sequence=px.colors.qualitative.Pastel,
+                     title=title,
+                     trendline='lowess',
+                     trendline_color_override='orchid',
+                     labels=labels)
+
+    fig.add_traces(go.Scatter(x=df['year'], y=df['precipAvg'],
+                              name='Precipitation Average'))
+    fig.add_traces(go.Scatter(x=df['year'], y=df['precipMedian'],
+                   name='Precipitation Median'))
+
+    fig.update_layout(xaxis_title='Year',
+                      yaxis_title='Montly Precipitation'
                       )
 
     fig.update_traces(mode='lines')
