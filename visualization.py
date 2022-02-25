@@ -380,7 +380,7 @@ def genCountyLowerQuartilePdsi(dfLowerQuartile: pd.DataFrame, name: str):
     fig.update_layout(margin={'r': 0, 't': 50, 'l': 0, 'b': 0})
 
     fig.update_layout(coloraxis_colorbar=dict(
-        title='Precipitation Avg',
+        title='Single Month Precipitation',
         thicknessmode='pixels', thickness=20,
         lenmode='pixels', len=200,
         yanchor='top', y=1,
@@ -415,7 +415,7 @@ def genCountyLowerQuartilePrecip(dfLowerQuartile: pd.DataFrame, name: str):
     fig.update_layout(margin={'r': 0, 't': 50, 'l': 0, 'b': 0})
 
     fig.update_layout(coloraxis_colorbar=dict(
-        title='PDSI Avg',
+        title='Single Month PDSI',
         thicknessmode='pixels', thickness=20,
         lenmode='pixels', len=200,
         yanchor='top', y=1,
